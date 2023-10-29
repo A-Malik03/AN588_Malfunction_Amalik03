@@ -1,0 +1,172 @@
+---
+title: "Jimmy's Edits"
+author: "Jimmy Erkens"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+## Jimmy Comments
+
+Hey no worries at all I think you did great! I've added my comments throughout your document, feel free to see what's up.
+
+### 1
+
+Check your logic if/else statements in your R function. As it stands, if you have n2 but not p2, the function is going to think you have both and will proceed with a 2-sample. I'm unsure why it's returning NULL but triple check your statements to make sure you're calculating the correct things (make sure phat and p0 are differentiated too). I've shared my repo feel free to have a look at what I've done. I like what you did with the alternative argument but could be a bit annoying to have to type "alternative = 'two.sided'" when you just want to use this function for a super simple diagnostic p test.
+
+### 2
+
+Your plots look great and I can tell you've spent your time looking it over (shoutout to stack exchange). With the CIs and PIs, you've got to transform the brainsize variable in the aes() argument. Otherwise solid, I'd consider changing your variables that way you know what's what (df is too vague to be useful over the course of a document).
+
+
+## Reflection:
+Horrible is the only word that could explain the state of my mind doing this assignment. Creating the function was fun and relatively simple. But th second part of the homework took me days to figure out, and I did not figure it out well.  I struggled with keeping track of all my objects and their names as well as figuring out functions as they're being coded. I also struggled with the exact method of plotting all the confidence and prediction intervals. Eventually, I took what I think is a basic method and made a data frame of all my plotting points and called upon each individual line. I could not figure out what I did wrong with plotting the confidence and prediction intervals for the log graph. I believe I forgot to transform the confidence intervals but I tried performing log or undoing logs on different vectors but could not. Please excuse the horrible homework assignment, I had a lot on my plate this week.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Q1:  Write a simple R function, Z.prop.test(), that can perform one- or two-sample Z-tests for proportion data, using the following guidelines:
+
+```{r function code, include = FALSE}
+library(curl) # I normally like to put my libs in a separate chunk that way you don't call them everytime you run the chunk you're working on -Jimmy
+library(tidyverse)
+# library(manipulate), not available for the version of R I'm currently using 2023.06.2+561-Jimmy
+#p1= est. proportion of sample 1
+#n1 = sample size of sample 1
+#p2 = est. proportion of sample 2
+#n2 = sample size of sample 2
+#p0 = expected population proportion
+
+Z = NULL
+P = NULL
+CI = NULL
+z.prop.test <- function(p1, n1, p2 = NULL, n2 = NULL, p0, alternative = c("two.sided", "less", "greater"), conf.level = 0.95){ #  I like the alternative = c("") argument, but i think default is two.sided  -Jimmy
+
+  
+  if(is.null(p2) || is.null(n2)){    ##One sample z-test 
+    # the above logic statement should be &&-Jimmy
+      phat <- mean(p0) # head's up p1 = phat, p0 is what we're testing against-Jimmy
+      Z <- (phat-p1) / (sqrt(p1 * (1-p1)/ n1)) # within a function assign variables using "="-Jimmy
+      
+    if(alternative == "less"){
+      P <- pnorm(Z, lower.tail = TRUE)
+    }
+    if(alternative == "greater"){
+      P <- pnorm(Z, lower.tail = FALSE)
+    }
+    if(alternative == "two.sided"){
+      P = 2 * pnorm(Z, lower.tail = FALSE) # smart to standardize-Jimmy
+    }
+  #confidence interval for 1 sample test
+     lower <- phat - qnorm(1- (1- conf.level)/2) * sqrt(phat * (1-phat)/n1) # should be p1 and not phat, phat is our sample, p0 is the null-Jimmy
+     upper <- phat + qnorm(1- (1- conf.level)/2) * sqrt(phat * (1-phat)/n1) 
+    CI <- c(lower, upper) 
+
+  if(is.null(p2) == FALSE || is.null(n2) == FALSE){ # needs to be &-Jimmy
+   ##Do a two-sample test if there is p2
+    pstar <- ((p1 * n1) + (p2 * n2)) / (n1 + n2)
+      P <- 1- pnorm(Z, lower.tail = TRUE) + pnorm(Z, lower.tail = FALSE)
+     Z <- (p2 - p1) / sqrt(
+       pstar * (1-pstar) * (1/n1 + 1/n2)
+         )
+  #Calculate CI for 2 samples
+     phat2 <- p2-p1
+     lower <- phat2 - qnorm(1- (1- conf.level)/2) * sqrt(phat2 * 1- phat/(n1 + n2))
+    upper <- phat2 + qnorm(1- (1- conf.level)/2) * sqrt(phat2 * 1- phat/(n1 + n2))
+    CI = c(lower, upper)
+     }}
+    ##now check with rules of thumb
+  if((n1 * p1 < 5 || n1 * (1-p1) < 5)){ # solid or statement, what happens when either p2 or n2 isn't defined? -Jimmy
+    if(n2 * p2 < 5 || n2 * (1-p2) < 5)
+    print("WARNING: Both samples do not follow the rules of thumb, can not assume normal distribution")
+    else{
+      print("WARNING: Sample does not follow the rules of thumb, can not assume normal distribution")
+    }
+  }
+ ##end check with rules of thumb
+  
+  ##Critical value/CI for 1 sample
+
+  print(c(Z, P, CI)) # head's up this is a vector, not a list-Jimmy
+  #Return the test statistic, Critical value, and confidence intervals
+}
+
+# checking out your function-Jimmy
+# z.prop.test(0.4, 10, alternative = "two.sided", p0 = 0.4) NOTE function fails when we don't define n2 or p2 (line 70)-Jimmy
+# z.prop.test(p1=0.5, n1=10, p2=0.4, n2=12, alternative = "two.sided")
+# returns NULL -Jimmy
+```
+
+
+## Question 2: Kamilar  and Cooper Data
+```{r}
+f <- curl("https://raw.githubusercontent.com/fuzzyatelin/fuzzyatelin.github.io/master/AN588_Fall23/KamilarAndCooperData.csv")
+d <- read.csv(f)
+summary(d) 
+d <- d %>% select(c(Brain_Size_Species_Mean, MaxLongevity_m)) #isolate needed data set columns
+#Used to filter data frame: https://dplyr.tidyverse.org/reference/select.html
+d <- na.omit(d) # ^head's up you don't need to get rid of columns for this -Jimmy
+# personally I would use more detailed variable names "d" could be anything -Jimmy
+linmodel <- lm(data = d, MaxLongevity_m ~ Brain_Size_Species_Mean)
+linmodel
+
+pl <- ggplot(data = d, aes(x = Brain_Size_Species_Mean, y = MaxLongevity_m)) + geom_point() + geom_smooth(method = "lm", formula = y ~ x)
+pl
+
+```
+</br>As the brain size of the species increases by 1 gram, the longevity of the species is expected t increase by 1.218 months
+```{r}
+logmodel <- lm(data = d, log(MaxLongevity_m) ~ log(Brain_Size_Species_Mean) )
+logmodel
+plog <- ggplot(data = d, aes(x = log(Brain_Size_Species_Mean), y = log(MaxLongevity_m))) + geom_point() + geom_smooth(method = "lm", formula = y ~ x)
+plog
+  
+```
+</br> As the log of the brain size of the species increases by 1 gram, the expected log of longevity is expected to increase by 0.2341 months.
+
+</br> When Beta1 is equal to 0, it means that when brain size of the species increases, there is no change in the longevity of the species.
+</br> When Beta1 is not equal to 0, it means that there is a relationship between the species brain size and longevity.
+
+```{r 90 percent CI for the slope}
+linmodel
+confint(linmodel, level = 0.90) # note that CI changes for each individual x, check out the confidence band in geom_smooth() output-Jimmy
+```
+</br> CI of the slope of the untransformed model is [1.04, 1.40]
+```{r LOG 90 percent CI for the slope}
+confint(logmodel, level = 0.9)
+```
+</br> CI of log model is [0.205, 0.263] 
+```{r}
+lin.conf.int <- predict(linmodel, newdata = as.data.frame(x = d), interval = 'confidence', level = 0.90)
+lin.prid.int <- predict(linmodel, newdata = as.data.frame(x = d), interval = 'prediction', level = 0.90)
+                   
+log.conf.int <- predict(logmodel, newdata = as.data.frame(x = d), interval = 'confidence', level = 0.90)    
+log.prid.int <- predict(logmodel, newdata = as.data.frame(x = d), interval = 'prediction', level = 0.90)
+#Used this(https://stackoverflow.com/questions/14069629/how-can-i-plot-data-with-confidence-intervals) but was struggling to make it work so had to modify it, I might have just done the wrong thing
+
+df <- cbind.data.frame(d$Brain_Size_Species_Mean, d$MaxLongevity_m, lin.conf.int, lin.prid.int, log.conf.int, log.prid.int ) # ^ goodwork this looks correct-Jimmy
+names(df) <- c("brainsize", "longevity", "conf.fit", "lci", "uci", "prid.fit", "prid.lower", "prid.higher", "log.conf.fit", "log.lci", "log.uci", "log.prid.fit", "log.prid.lower", "log.prid.upper")
+
+linplot <- ggplot(data = df, aes(x = brainsize, y = longevity)) + geom_point() + geom_line(aes(x= brainsize, y = lci, colour = 'confidence')) + geom_line(aes(x= brainsize, y = uci, colour = 'confidence')) + geom_line(aes(x= brainsize, y = prid.lower, colour = 'prediction')) + geom_line(aes(x= brainsize, y = prid.higher, colour = 'prediction'))
+
+linplot
+
+```
+```{r log plots}
+logplot <- ggplot(data = df, aes(x = log(brainsize), y = log(longevity))) + geom_point() + geom_line(aes(x= brainsize, y = log.lci, colour = 'confidence')) + geom_line(aes(x= brainsize, y = log.uci, colour = 'confidence')) + geom_line(aes(x= brainsize, y = log.prid.lower, colour = 'prediction')) + geom_line(aes(x= brainsize, y = log.prid.upper, colour = 'prediction'))
+logplot
+# make sure for geom_line() arguments that x = log(brainsize), otherwise looks good -Jimmy
+```
+I'm not sure what I'm doing wrong, did I forget a crucial step?
+
+```{r}
+point.est <- predict(linmodel, x =800, interval = 'confidence', level = 0.90) #check your "new_data" argument -Jimmy
+point.est
+
+point.est.log <- predict(logmodel, x = 800, interval = 'confidence', level = 0.90)
+point.est.log
+```
+
+</br> In the grand scheme, I do not trust the models to predict observations for this value because values around 800g of brain were not considered for the linear regression models. The greatest data point is seen when x is around 500g. The model made can be used for data point's whose mass is below 500g.
+
+Between the 2 models, the logarithmic plot is better because it shows a more linear relationship compared to the plot of non-transformed data.
